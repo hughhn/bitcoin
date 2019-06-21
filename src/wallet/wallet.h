@@ -776,7 +776,7 @@ private:
     WalletLocation m_location;
 
     /** Internal database handle. */
-    std::unique_ptr<WalletDatabase> database;
+    std::shared_ptr<WalletDatabase> database;
 
     /**
      * The following is used to keep track of how far behind the wallet is
