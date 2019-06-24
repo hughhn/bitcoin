@@ -87,7 +87,7 @@ bool LegacyScriptPubKeyMan::SetupGeneration(bool force)
 
 bool LegacyScriptPubKeyMan::IsHDEnabled() const
 {
-    return false;
+    return !hdChain.seed_id.IsNull();
 }
 
 bool LegacyScriptPubKeyMan::CanGetAddresses(bool internal)
@@ -371,4 +371,13 @@ bool LegacyScriptPubKeyMan::AddWatchOnly(const CScript& dest, int64_t nCreateTim
 {
     m_script_metadata[CScriptID(dest)].nCreateTime = nCreateTime;
     return AddWatchOnly(dest);
+}
+
+void LegacyScriptPubKeyMan::SetHDChain(const CHDChain& chain, bool memonly)
+{
+    LOCK(cs_KeyStore);
+    if (!memonly && !WalletBatch(*m_database).WriteHDChain(chain))
+        throw std::runtime_error(std::string(__func__) + ": writing chain failed");
+
+    hdChain = chain;
 }
