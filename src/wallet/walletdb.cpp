@@ -236,8 +236,10 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             ssKey >> script;
             char fYes;
             ssValue >> fYes;
-            if (fYes == '1')
+            if (fYes == '1') {
                 pwallet->LoadWatchOnly(script);
+                pwallet->GetLegacyScriptPubKeyMan()->LoadWatchOnly(script);
+            }
         }
         else if (strType == "key" || strType == "wkey")
         {
@@ -302,6 +304,11 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
                 strErr = "Error reading wallet database: LoadKey failed";
                 return false;
             }
+            if (!pwallet->GetLegacyScriptPubKeyMan()->LoadKey(key, vchPubKey))
+            {
+                strErr = "Error reading wallet database: LegacyScriptPubKeyMan::LoadKey failed";
+                return false;
+            }
         }
         else if (strType == "mkey")
         {
@@ -336,6 +343,11 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
                 strErr = "Error reading wallet database: LoadCryptedKey failed";
                 return false;
             }
+            if (!pwallet->GetLegacyScriptPubKeyMan()->LoadCryptedKey(vchPubKey, vchPrivKey))
+            {
+                strErr = "Error reading wallet database: LegacyScriptPubKeyMan::LoadCryptedKey failed";
+                return false;
+            }
             wss.fIsEncrypted = true;
         }
         else if (strType == "keymeta")
@@ -346,6 +358,7 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             ssValue >> keyMeta;
             wss.nKeyMeta++;
             pwallet->LoadKeyMetadata(vchPubKey.GetID(), keyMeta);
+            pwallet->GetLegacyScriptPubKeyMan()->LoadKeyMetadata(vchPubKey.GetID(), keyMeta);
         }
         else if (strType == "watchmeta")
         {
@@ -355,6 +368,7 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             ssValue >> keyMeta;
             wss.nKeyMeta++;
             pwallet->LoadScriptMetadata(CScriptID(script), keyMeta);
+            pwallet->GetLegacyScriptPubKeyMan()->LoadScriptMetadata(CScriptID(script), keyMeta);
         }
         else if (strType == "defaultkey")
         {
@@ -375,6 +389,7 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             ssValue >> keypool;
 
             pwallet->LoadKeyPool(nIndex, keypool);
+            pwallet->GetLegacyScriptPubKeyMan()->LoadKeyPool(nIndex, keypool);
         }
         else if (strType == "version")
         {
@@ -391,6 +406,11 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             if (!pwallet->LoadCScript(script))
             {
                 strErr = "Error reading wallet database: LoadCScript failed";
+                return false;
+            }
+            if (!pwallet->GetLegacyScriptPubKeyMan()->LoadCScript(script))
+            {
+                strErr = "Error reading wallet database: LegacyScriptPubKeyMan::LoadCScript failed";
                 return false;
             }
         }
@@ -411,6 +431,7 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             CHDChain chain;
             ssValue >> chain;
             pwallet->SetHDChain(chain, true);
+            pwallet->GetLegacyScriptPubKeyMan()->SetHDChain(chain, true);
         } else if (strType == "flags") {
             uint64_t flags;
             ssValue >> flags;
@@ -465,6 +486,9 @@ DBErrors WalletBatch::LoadWallet(CWallet* pwallet)
             pwallet->WalletLogPrintf("Error getting wallet database cursor\n");
             return DBErrors::CORRUPT;
         }
+
+        // Always create LegacyScriptPubKeyMan for now
+        pwallet->SetupLegacyScriptPubKeyMan();
 
         while (true)
         {
