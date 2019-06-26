@@ -28,8 +28,9 @@ BOOST_FIXTURE_TEST_SUITE(wallet_tests, WalletTestingSetup)
 
 static void AddKey(CWallet& wallet, const CKey& key)
 {
-    LOCK(wallet.cs_wallet);
-    wallet.AddKeyPubKey(key, key.GetPubKey());
+    auto spk_man = wallet.GetLegacyScriptPubKeyMan();
+    LOCK2(wallet.cs_wallet, spk_man->cs_KeyStore);
+    spk_man->AddKeyPubKey(key, key.GetPubKey());
 }
 
 BOOST_FIXTURE_TEST_CASE(scan_for_wallet_transactions, TestChain100Setup)
@@ -132,6 +133,7 @@ BOOST_FIXTURE_TEST_CASE(importmulti_rescan, TestChain100Setup)
     // after.
     {
         std::shared_ptr<CWallet> wallet = std::make_shared<CWallet>(chain.get(), WalletLocation(), WalletDatabase::CreateDummy());
+        wallet->SetupLegacyScriptPubKeyMan();
         AddWallet(wallet);
         UniValue keys;
         keys.setArray();
@@ -195,9 +197,10 @@ BOOST_FIXTURE_TEST_CASE(importwallet_rescan, TestChain100Setup)
     // Import key into wallet and call dumpwallet to create backup file.
     {
         std::shared_ptr<CWallet> wallet = std::make_shared<CWallet>(chain.get(), WalletLocation(), WalletDatabase::CreateDummy());
-        LOCK(wallet->cs_wallet);
-        wallet->mapKeyMetadata[coinbaseKey.GetPubKey().GetID()].nCreateTime = KEY_TIME;
-        wallet->AddKeyPubKey(coinbaseKey, coinbaseKey.GetPubKey());
+        auto spk_man = wallet->GetLegacyScriptPubKeyMan();
+        LOCK2(wallet->cs_wallet, spk_man->cs_KeyStore);
+        spk_man->mapKeyMetadata[coinbaseKey.GetPubKey().GetID()].nCreateTime = KEY_TIME;
+        spk_man->AddKeyPubKey(coinbaseKey, coinbaseKey.GetPubKey());
 
         JSONRPCRequest request;
         request.params.setArray();
@@ -211,6 +214,7 @@ BOOST_FIXTURE_TEST_CASE(importwallet_rescan, TestChain100Setup)
     // were scanned, and no prior blocks were scanned.
     {
         std::shared_ptr<CWallet> wallet = std::make_shared<CWallet>(chain.get(), WalletLocation(), WalletDatabase::CreateDummy());
+        wallet->SetupLegacyScriptPubKeyMan();
 
         JSONRPCRequest request;
         request.params.setArray();
@@ -243,11 +247,12 @@ BOOST_FIXTURE_TEST_CASE(coin_mark_dirty_immature_credit, TestChain100Setup)
     auto chain = interfaces::MakeChain();
 
     CWallet wallet(chain.get(), WalletLocation(), WalletDatabase::CreateDummy());
+    auto spk_man = wallet.GetLegacyScriptPubKeyMan();
     CWalletTx wtx(&wallet, m_coinbase_txns.back());
 
     auto locked_chain = chain->lock();
     LockAssertion lock(::cs_main);
-    LOCK(wallet.cs_wallet);
+    LOCK2(wallet.cs_wallet, spk_man->cs_KeyStore);
 
     wtx.hashBlock = ::ChainActive().Tip()->GetBlockHash();
     wtx.nIndex = 0;
@@ -259,7 +264,7 @@ BOOST_FIXTURE_TEST_CASE(coin_mark_dirty_immature_credit, TestChain100Setup)
     // Invalidate the cached value, add the key, and make sure a new immature
     // credit amount is calculated.
     wtx.MarkDirty();
-    wallet.AddKeyPubKey(coinbaseKey, coinbaseKey.GetPubKey());
+    BOOST_CHECK(spk_man->AddKeyPubKey(coinbaseKey, coinbaseKey.GetPubKey()));
     BOOST_CHECK_EQUAL(wtx.GetImmatureCredit(*locked_chain), 50*COIN);
 }
 
@@ -460,6 +465,7 @@ BOOST_FIXTURE_TEST_CASE(wallet_disableprivkeys, TestChain100Setup)
 {
     auto chain = interfaces::MakeChain();
     std::shared_ptr<CWallet> wallet = std::make_shared<CWallet>(chain.get(), WalletLocation(), WalletDatabase::CreateDummy());
+    wallet->SetupLegacyScriptPubKeyMan();
     wallet->SetMinVersion(FEATURE_LATEST);
     wallet->SetWalletFlag(WALLET_FLAG_DISABLE_PRIVATE_KEYS);
     BOOST_CHECK(!wallet->TopUpKeyPool(1000));
