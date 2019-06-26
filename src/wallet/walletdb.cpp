@@ -254,7 +254,6 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             char fYes;
             ssValue >> fYes;
             if (fYes == '1') {
-                pwallet->LoadWatchOnly(script);
                 pwallet->GetLegacyScriptPubKeyMan()->LoadWatchOnly(script);
             }
         } else if (strType == DBKeys::KEY) {
@@ -307,11 +306,6 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
                 strErr = "Error reading wallet database: CPrivKey corrupt";
                 return false;
             }
-            if (!pwallet->LoadKey(key, vchPubKey))
-            {
-                strErr = "Error reading wallet database: LoadKey failed";
-                return false;
-            }
             if (!pwallet->GetLegacyScriptPubKeyMan()->LoadKey(key, vchPubKey))
             {
                 strErr = "Error reading wallet database: LegacyScriptPubKeyMan::LoadKey failed";
@@ -342,11 +336,6 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             ssValue >> vchPrivKey;
             wss.nCKeys++;
 
-            if (!pwallet->LoadCryptedKey(vchPubKey, vchPrivKey))
-            {
-                strErr = "Error reading wallet database: LoadCryptedKey failed";
-                return false;
-            }
             if (!pwallet->GetLegacyScriptPubKeyMan()->LoadCryptedKey(vchPubKey, vchPrivKey))
             {
                 strErr = "Error reading wallet database: LegacyScriptPubKeyMan::LoadCryptedKey failed";
@@ -360,7 +349,6 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             CKeyMetadata keyMeta;
             ssValue >> keyMeta;
             wss.nKeyMeta++;
-            pwallet->LoadKeyMetadata(vchPubKey.GetID(), keyMeta);
             pwallet->GetLegacyScriptPubKeyMan()->LoadKeyMetadata(vchPubKey.GetID(), keyMeta);
         } else if (strType == DBKeys::WATCHMETA) {
             CScript script;
@@ -368,7 +356,6 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             CKeyMetadata keyMeta;
             ssValue >> keyMeta;
             wss.nKeyMeta++;
-            pwallet->LoadScriptMetadata(CScriptID(script), keyMeta);
             pwallet->GetLegacyScriptPubKeyMan()->LoadScriptMetadata(CScriptID(script), keyMeta);
         } else if (strType == DBKeys::DEFAULTKEY) {
             // We don't want or need the default key, but if there is one set,
@@ -385,18 +372,12 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             CKeyPool keypool;
             ssValue >> keypool;
 
-            pwallet->LoadKeyPool(nIndex, keypool);
             pwallet->GetLegacyScriptPubKeyMan()->LoadKeyPool(nIndex, keypool);
         } else if (strType == DBKeys::CSCRIPT) {
             uint160 hash;
             ssKey >> hash;
             CScript script;
             ssValue >> script;
-            if (!pwallet->LoadCScript(script))
-            {
-                strErr = "Error reading wallet database: LoadCScript failed";
-                return false;
-            }
             if (!pwallet->GetLegacyScriptPubKeyMan()->LoadCScript(script))
             {
                 strErr = "Error reading wallet database: LegacyScriptPubKeyMan::LoadCScript failed";
@@ -413,7 +394,6 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
         } else if (strType == DBKeys::HDCHAIN) {
             CHDChain chain;
             ssValue >> chain;
-            pwallet->SetHDChain(chain, true);
             pwallet->GetLegacyScriptPubKeyMan()->SetHDChain(chain, true);
         } else if (strType == DBKeys::FLAGS) {
             uint64_t flags;
@@ -535,10 +515,6 @@ DBErrors WalletBatch::LoadWallet(CWallet* pwallet)
 
     pwallet->WalletLogPrintf("Keys: %u plaintext, %u encrypted, %u w/ metadata, %u total. Unknown wallet records: %u\n",
            wss.nKeys, wss.nCKeys, wss.nKeyMeta, wss.nKeys + wss.nCKeys, wss.m_unknown_records);
-
-    // nTimeFirstKey is only reliable if all keys have metadata
-    if ((wss.nKeys + wss.nCKeys + wss.nWatchKeys) != wss.nKeyMeta)
-        pwallet->UpdateTimeFirstKey(1);
 
     for (const uint256& hash : wss.vWalletUpgrade)
         WriteTx(pwallet->mapWallet.at(hash));
