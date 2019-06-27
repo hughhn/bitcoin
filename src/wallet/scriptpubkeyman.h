@@ -272,6 +272,10 @@ private:
     std::set<int64_t> set_pre_split_keypool GUARDED_BY(cs_KeyStore);
     int64_t m_max_keypool_index GUARDED_BY(cs_KeyStore) = 0;
     std::map<CKeyID, int64_t> m_pool_key_to_index;
+    std::map<int64_t, CKeyID> m_reserved_key_to_index;
+
+    void KeepKey(int64_t nIndex);
+    void ReturnKey(int64_t nIndex, bool fInternal, const CKeyID& pubkey_id);
 
 public:
     LegacyScriptPubKeyMan(FlagSetFunc is_set_func, FlagFunc set_flag_func, FlagFuncWithDB unset_flag_func, VersionFunc feature_sup_func, NameFunc wallet_name_func, SetVersionFunc set_version_func, std::shared_ptr<WalletDatabase> database)
