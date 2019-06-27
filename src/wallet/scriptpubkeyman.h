@@ -226,6 +226,9 @@ private:
 
     bool SetCrypted();
 
+    //! keeps track of whether Unlock has run a thorough check before
+    bool fDecryptionThoroughlyChecked;
+
     CKeyingMaterial vMasterKey GUARDED_BY(cs_KeyStore);
     using WatchOnlySet = std::set<CScript>;
     using WatchKeyMap = std::map<CKeyID, CPubKey>;
@@ -300,7 +303,9 @@ private:
 
 public:
     LegacyScriptPubKeyMan(FlagSetFunc is_set_func, FlagFunc set_flag_func, FlagFuncWithDB unset_flag_func, VersionFunc feature_sup_func, NameFunc wallet_name_func, SetVersionFunc set_version_func, std::shared_ptr<WalletDatabase> database)
-        :   ScriptPubKeyMan(is_set_func, set_flag_func, unset_flag_func, feature_sup_func, wallet_name_func, set_version_func, database)
+        :   ScriptPubKeyMan(is_set_func, set_flag_func, unset_flag_func, feature_sup_func, wallet_name_func, set_version_func, database),
+            fUseCrypto(false),
+            fDecryptionThoroughlyChecked(false)
         {}
 
     bool GetNewDestination(const OutputType type, CTxDestination& dest, std::string& error) override EXCLUSIVE_LOCKS_REQUIRED(cs_KeyStore);
