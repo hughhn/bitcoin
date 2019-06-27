@@ -349,6 +349,7 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
                 return false;
             }
             wss.fIsEncrypted = true;
+            pwallet->SetCrypted();
         }
         else if (strType == "keymeta")
         {
