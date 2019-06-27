@@ -24,7 +24,7 @@ bool LegacyScriptPubKeyMan::GetNewDestination(const OutputType type, CTxDestinat
 
 isminetype LegacyScriptPubKeyMan::IsMine(const CScript& script) const
 {
-    return ISMINE_NO;
+    return ::IsMine(*this, script);
 }
 
 bool LegacyScriptPubKeyMan::IsCrypted() const
