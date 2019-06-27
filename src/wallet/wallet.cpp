@@ -3455,7 +3455,23 @@ bool CWallet::NewKeyPool()
 size_t CWallet::KeypoolCountExternalKeys()
 {
     AssertLockHeld(cs_wallet);
-    return setExternalKeyPool.size() + set_pre_split_keypool.size();
+
+    unsigned int count = 0;
+    for (auto spk_man_pair : m_spk_managers) {
+        count += spk_man_pair.second->KeypoolCountExternalKeys();
+    }
+    return count;
+}
+
+unsigned int CWallet::GetKeyPoolSize() const
+{
+    AssertLockHeld(cs_wallet);
+
+    unsigned int count = 0;
+    for (auto spk_man_pair : m_spk_managers) {
+        count += spk_man_pair.second->GetKeypoolSize();
+    }
+    return count;
 }
 
 void CWallet::LoadKeyPool(int64_t nIndex, const CKeyPool &keypool)
