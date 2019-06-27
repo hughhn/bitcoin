@@ -4952,6 +4952,56 @@ bool CWallet::AddCryptedKeyInner(const CPubKey &vchPubKey, const std::vector<uns
     return true;
 }
 
+std::set<std::shared_ptr<ScriptPubKeyMan>> CWallet::GetActiveScriptPubKeyMans() const
+{
+    std::set<std::shared_ptr<ScriptPubKeyMan>> spk_mans;
+    for (bool internal : {false, true}) {
+        for (OutputType t : output_types) {
+            auto spk_man = GetScriptPubKeyMan(t, internal);
+            if (spk_man) {
+                spk_mans.insert(spk_man);
+            }
+        }
+    }
+    return spk_mans;
+}
+
+std::shared_ptr<ScriptPubKeyMan> CWallet::GetScriptPubKeyMan(const OutputType& type, bool internal) const
+{
+    if (internal) {
+        if (m_internal_spk_managers.size() != output_types.size()) {
+            WalletLogPrintf("Missing some internal scriptPubKey Managers. Expecting %d, got %d\n", output_types.size(), m_internal_spk_managers.size());
+            return nullptr;
+        }
+        return m_internal_spk_managers.at(type);
+    } else {
+        if (m_external_spk_managers.size() != output_types.size()) {
+            WalletLogPrintf("Missing some external scriptPubKey Managers. Expecting %d, got %d\n", output_types.size(), m_external_spk_managers.size());
+            return nullptr;
+        }
+        return m_external_spk_managers.at(type);
+    }
+}
+
+std::shared_ptr<ScriptPubKeyMan> CWallet::GetScriptPubKeyMan(const CScript& script) const
+{
+    SignatureData sigdata;
+    for (auto spk_man_pair : m_spk_managers) {
+        if (spk_man_pair.second->CanProvide(script, sigdata)) {
+            return spk_man_pair.second;
+        }
+    }
+    return nullptr;
+}
+
+std::shared_ptr<ScriptPubKeyMan> CWallet::GetScriptPubKeyMan(const uint256& id) const
+{
+    if (m_spk_managers.count(id) > 0) {
+        return m_spk_managers.at(id);
+    }
+    return nullptr;
+}
+
 std::unique_ptr<SigningProvider> CWallet::GetSigningProvider(const CScript& script) const
 {
     SignatureData sigdata;
