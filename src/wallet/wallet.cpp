@@ -4234,33 +4234,9 @@ std::shared_ptr<CWallet> CWallet::CreateWalletFromFile(interfaces::Chain& chain,
             return nullptr;
         }
 
-        bool hd_upgrade = false;
-        bool split_upgrade = false;
-        if (walletInstance->CanSupportFeature(FEATURE_HD) && !walletInstance->IsHDEnabled()) {
-            walletInstance->WalletLogPrintf("Upgrading wallet to HD\n");
-            walletInstance->SetMinVersion(FEATURE_HD);
-
-            // generate a new master key
-            CPubKey masterPubKey = walletInstance->GenerateNewSeed();
-            walletInstance->SetHDSeed(masterPubKey);
-            hd_upgrade = true;
-        }
-        // Upgrade to HD chain split if necessary
-        if (walletInstance->CanSupportFeature(FEATURE_HD_SPLIT)) {
-            walletInstance->WalletLogPrintf("Upgrading wallet to use HD chain split\n");
-            walletInstance->SetMinVersion(FEATURE_PRE_SPLIT_KEYPOOL);
-            split_upgrade = FEATURE_HD_SPLIT > prev_version;
-        }
-        // Mark all keys currently in the keypool as pre-split
-        if (split_upgrade) {
-            walletInstance->MarkPreSplitKeys();
-        }
-        // Regenerate the keypool if upgraded to HD
-        if (hd_upgrade) {
-            if (!walletInstance->TopUpKeyPool()) {
-                chain.initError(_("Unable to generate keys"));
-                return nullptr;
-            }
+        for (OutputType t : output_types) {
+            walletInstance->GetScriptPubKeyMan(t, false)->Upgrade(prev_version, max_version);
+            walletInstance->GetScriptPubKeyMan(t, true)->Upgrade(prev_version, max_version);
         }
     }
 
@@ -4270,16 +4246,16 @@ std::shared_ptr<CWallet> CWallet::CreateWalletFromFile(interfaces::Chain& chain,
         walletInstance->SetMinVersion(FEATURE_LATEST);
 
         walletInstance->SetWalletFlags(wallet_creation_flags, false);
-        if (!(wallet_creation_flags & (WALLET_FLAG_DISABLE_PRIVATE_KEYS | WALLET_FLAG_BLANK_WALLET))) {
-            // generate a new seed
-            CPubKey seed = walletInstance->GenerateNewSeed();
-            walletInstance->SetHDSeed(seed);
-        }
 
-        // Top up the keypool
-        if (walletInstance->CanGenerateKeys() && !walletInstance->TopUpKeyPool()) {
-            chain.initError(_("Unable to generate initial keys"));
-            return nullptr;
+        // Always create LegacyScriptPubKeyMan for now
+        walletInstance->SetupLegacyScriptPubKeyMan();
+
+        if (!(wallet_creation_flags & (WALLET_FLAG_DISABLE_PRIVATE_KEYS | WALLET_FLAG_BLANK_WALLET))) {
+            LOCK(walletInstance->cs_wallet);
+            for (OutputType t : output_types) {
+                walletInstance->GetScriptPubKeyMan(t, false)->SetupGeneration();
+                walletInstance->GetScriptPubKeyMan(t, true)->SetupGeneration();
+            }
         }
 
         auto locked_chain = chain.lock();
@@ -4289,9 +4265,11 @@ std::shared_ptr<CWallet> CWallet::CreateWalletFromFile(interfaces::Chain& chain,
         chain.initError(strprintf(_("Error loading %s: Private keys can only be disabled during creation"), walletFile));
         return NULL;
     } else if (walletInstance->IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS)) {
-        LOCK(walletInstance->cs_KeyStore);
-        if (!walletInstance->mapKeys.empty() || !walletInstance->mapCryptedKeys.empty()) {
-            chain.initWarning(strprintf(_("Warning: Private keys detected in wallet {%s} with disabled private keys"), walletFile));
+        for (OutputType t : output_types) {
+            if (walletInstance->GetScriptPubKeyMan(t, false)->HavePrivateKeys() || walletInstance->GetScriptPubKeyMan(t, true)->HavePrivateKeys()) {
+                chain.initWarning(strprintf(_("Warning: Private keys detected in wallet {%s} with disabled private keys"), walletFile));
+                break;
+            }
         }
     }
 
