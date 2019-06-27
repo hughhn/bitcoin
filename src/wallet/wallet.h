@@ -1364,6 +1364,10 @@ public:
     //! Get the ScriptPubKeyMan for the given OutputType and internal/external chain. If it doesn't exist, instantiate one
     std::shared_ptr<ScriptPubKeyMan> GetScriptPubKeyMan(const OutputType& type, bool internal) const;
 
+    //! Get the SigningProvider for a script
+    std::unique_ptr<SigningProvider> GetSigningProvider(const CScript& script) const;
+    std::unique_ptr<SigningProvider> GetSigningProvider(const CScript& script, SignatureData& sigdata) const;
+
     //! Get the LegacyScriptPubKeyMan which is used for all types, internal, and external.
     std::shared_ptr<LegacyScriptPubKeyMan> GetLegacyScriptPubKeyMan();
 
