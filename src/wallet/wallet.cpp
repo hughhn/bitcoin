@@ -858,14 +858,18 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
         }
         encrypted_batch->WriteMasterKey(nMasterKeyMaxID, kMasterKey);
 
-        if (!EncryptKeys(_vMasterKey))
-        {
-            encrypted_batch->TxnAbort();
-            delete encrypted_batch;
-            encrypted_batch = nullptr;
-            // We now probably have half of our keys encrypted in memory, and half not...
-            // die and let the user reload the unencrypted wallet.
-            assert(false);
+        SetCrypted();
+
+        for (auto spk_man_pair : m_spk_managers) {
+            auto spk_man = spk_man_pair.second;
+            if (!spk_man->Encrypt(_vMasterKey, encrypted_batch)) {
+                encrypted_batch->TxnAbort();
+                delete encrypted_batch;
+                encrypted_batch = nullptr;
+                // We now probably have half of our keys encrypted in memory, and half not...
+                // die and let the user reload the unencrypted wallet.
+                assert(false);
+            }
         }
 
         // Encryption was introduced in version 0.4.0
@@ -887,10 +891,10 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
 
         // if we are using HD, replace the HD seed with a new one
         if (IsHDEnabled()) {
-            SetHDSeed(GenerateNewSeed());
+            for (auto spk_man_pair : m_spk_managers) {
+                spk_man_pair.second->SetupGeneration(true);
+            }
         }
-
-        NewKeyPool();
         Lock();
 
         // Need to completely rewrite the wallet file; if we don't, bdb might keep
@@ -4671,11 +4675,9 @@ bool CWallet::AddKeyOriginWithDB(WalletBatch& batch, const CPubKey& pubkey, cons
 
 bool CWallet::SetCrypted()
 {
-    LOCK(cs_KeyStore);
+    LOCK(cs_wallet);
     if (fUseCrypto)
         return true;
-    if (!mapKeys.empty())
-        return false;
     fUseCrypto = true;
     return true;
 }
@@ -4685,7 +4687,7 @@ bool CWallet::IsLocked() const
     if (!IsCrypted()) {
         return false;
     }
-    LOCK(cs_KeyStore);
+    LOCK(cs_wallet);
     return vMasterKey.empty();
 }
 
@@ -4694,9 +4696,13 @@ bool CWallet::Lock()
     if (!SetCrypted())
         return false;
 
+    bool result = true;
     {
-        LOCK(cs_KeyStore);
+        LOCK(cs_wallet);
         vMasterKey.clear();
+        for (auto spk_man_pair : m_spk_managers) {
+            result &= spk_man_pair.second->Lock();
+        }
     }
 
     NotifyStatusChanged(this);
@@ -4706,34 +4712,12 @@ bool CWallet::Lock()
 bool CWallet::Unlock(const CKeyingMaterial& vMasterKeyIn, bool accept_no_keys)
 {
     {
-        LOCK(cs_KeyStore);
-        if (!SetCrypted())
-            return false;
-
-        bool keyPass = mapCryptedKeys.empty(); // Always pass when there are no encrypted keys
-        bool keyFail = false;
-        CryptedKeyMap::const_iterator mi = mapCryptedKeys.begin();
-        for (; mi != mapCryptedKeys.end(); ++mi)
-        {
-            const CPubKey &vchPubKey = (*mi).second.first;
-            const std::vector<unsigned char> &vchCryptedSecret = (*mi).second.second;
-            CKey key;
-            if (!DecryptKey(vMasterKeyIn, vchCryptedSecret, vchPubKey, key))
-            {
-                keyFail = true;
-                break;
+        LOCK(cs_wallet);
+        for (auto spk_man_pair : m_spk_managers) {
+            if (!spk_man_pair.second->Unlock(vMasterKeyIn, accept_no_keys)) {
+                return false;
             }
-            keyPass = true;
-            if (fDecryptionThoroughlyChecked)
-                break;
         }
-        if (keyPass && keyFail)
-        {
-            LogPrintf("The wallet is probably corrupted: Some keys decrypt but not all.\n");
-            throw std::runtime_error("Error unlocking wallet: some keys decrypt but not all. Your wallet file may be corrupt.");
-        }
-        if (keyFail || (!keyPass && !accept_no_keys))
-            return false;
         vMasterKey = vMasterKeyIn;
         fDecryptionThoroughlyChecked = true;
     }
