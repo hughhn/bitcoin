@@ -3707,27 +3707,22 @@ bool CWallet::GetNewDestination(const OutputType type, const std::string label, 
 {
     LOCK(cs_wallet);
     error.clear();
-
-    TopUpKeyPool();
-
-    // Generate a new key that is added to wallet
-    CPubKey new_key;
-    if (!GetKeyFromPool(new_key)) {
-        error = "Error: Keypool ran out, please call keypoolrefill first";
-        return false;
+    bool result = false;
+    auto spk_man = GetScriptPubKeyMan(type, false);
+    if (spk_man) {
+        result = spk_man->GetNewDestination(type, dest, error);
     }
-    LearnRelatedScripts(new_key, type);
-    dest = GetDestinationForKey(new_key, type);
+    if (result) {
+        SetAddressBook(dest, label, "receive");
+    }
 
-    SetAddressBook(dest, label, "receive");
-    return true;
+    return result;
 }
 
 bool CWallet::GetNewChangeDestination(const OutputType type, CTxDestination& dest, std::string& error)
 {
+    LOCK(cs_wallet);
     error.clear();
-
-    TopUpKeyPool();
 
     ReserveDestination reservedest(this);
     if (!reservedest.GetReservedDestination(type, dest, true)) {
@@ -3920,42 +3915,44 @@ std::set<CTxDestination> CWallet::GetLabelAddresses(const std::string& label) co
 
 bool ReserveDestination::GetReservedDestination(const OutputType type, CTxDestination& dest, bool internal)
 {
-    if (!pwallet->CanGetAddresses(internal)) {
+    spk_man = pwallet->GetScriptPubKeyMan(type, internal);
+    if (!spk_man) {
+        return false;
+    }
+
+    if (!spk_man->IsLocked()) {
+        spk_man->TopUp();
+    }
+
+    if (!spk_man->CanGetAddresses(internal)) {
         return false;
     }
 
     if (nIndex == -1)
     {
         CKeyPool keypool;
-        if (!pwallet->ReserveKeyFromKeyPool(nIndex, keypool, internal)) {
+        if (!spk_man->GetReservedDestination(type, internal, dest, nIndex, keypool)) {
             return false;
         }
-        vchPubKey = keypool.vchPubKey;
         fInternal = keypool.fInternal;
     }
-    assert(vchPubKey.IsValid());
-    pwallet->LearnRelatedScripts(vchPubKey, type);
-    address = GetDestinationForKey(vchPubKey, type);
-    dest = address;
     return true;
 }
 
 void ReserveDestination::KeepDestination()
 {
     if (nIndex != -1)
-        pwallet->KeepKey(nIndex);
+        spk_man->KeepDestination(nIndex);
     nIndex = -1;
-    vchPubKey = CPubKey();
     address = CNoDestination();
 }
 
 void ReserveDestination::ReturnDestination()
 {
     if (nIndex != -1) {
-        pwallet->ReturnKey(nIndex, fInternal, vchPubKey);
+        spk_man->ReturnDestination(nIndex, fInternal, address);
     }
     nIndex = -1;
-    vchPubKey = CPubKey();
     address = CNoDestination();
 }
 
