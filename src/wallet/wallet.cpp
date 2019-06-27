@@ -3709,18 +3709,10 @@ static int64_t GetOldestKeyTimeInPool(const std::set<int64_t>& setKeyPool, Walle
 int64_t CWallet::GetOldestKeyPoolTime()
 {
     LOCK(cs_wallet);
-
-    WalletBatch batch(*database);
-
-    // load oldest key from keypool, get time and return
-    int64_t oldestKey = GetOldestKeyTimeInPool(setExternalKeyPool, batch);
-    if (IsHDEnabled() && CanSupportFeature(FEATURE_HD_SPLIT)) {
-        oldestKey = std::max(GetOldestKeyTimeInPool(setInternalKeyPool, batch), oldestKey);
-        if (!set_pre_split_keypool.empty()) {
-            oldestKey = std::max(GetOldestKeyTimeInPool(set_pre_split_keypool, batch), oldestKey);
-        }
+    int64_t oldestKey = 0;
+    for (auto spk_man_pair : m_spk_managers) {
+        oldestKey = std::max(oldestKey, spk_man_pair.second->GetOldestKeyPoolTime());
     }
-
     return oldestKey;
 }
 
