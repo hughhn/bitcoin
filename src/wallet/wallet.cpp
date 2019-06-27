@@ -4960,6 +4960,25 @@ std::shared_ptr<ScriptPubKeyMan> CWallet::GetScriptPubKeyMan(const OutputType& t
     }
 }
 
+std::shared_ptr<ScriptPubKeyMan> CWallet::GetScriptPubKeyMan(const CScript& script) const
+{
+    SignatureData sigdata;
+    for (auto spk_man_pair : m_spk_managers) {
+        if (spk_man_pair.second->CanProvide(script, sigdata)) {
+            return spk_man_pair.second;
+        }
+    }
+    return nullptr;
+}
+
+std::shared_ptr<ScriptPubKeyMan> CWallet::GetScriptPubKeyMan(const uint256& id) const
+{
+    if (m_spk_managers.count(id) > 0) {
+        return m_spk_managers.at(id);
+    }
+    return nullptr;
+}
+
 std::unique_ptr<SigningProvider> CWallet::GetSigningProvider(const CScript& script) const
 {
     SignatureData sigdata;
