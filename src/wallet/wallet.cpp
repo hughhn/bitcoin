@@ -211,9 +211,13 @@ std::shared_ptr<CWallet> CreateWallet(interfaces::Chain& chain, const std::strin
             }
 
             // Set a seed for the wallet
-            CPubKey master_pub_key = wallet->GenerateNewSeed();
-            wallet->SetHDSeed(master_pub_key);
-            wallet->NewKeyPool();
+            {
+                LOCK(wallet->cs_wallet);
+                for (OutputType t : output_types) {
+                    wallet->GetScriptPubKeyMan(t, false)->SetupGeneration();
+                    wallet->GetScriptPubKeyMan(t, true)->SetupGeneration();
+                }
+            }
 
             // Relock the wallet
             wallet->Lock();
