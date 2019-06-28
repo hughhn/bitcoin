@@ -1657,18 +1657,11 @@ bool CWallet::CanGenerateKeys()
 bool CWallet::CanGetAddresses(bool internal)
 {
     LOCK(cs_wallet);
-    // Check if the keypool has keys
-    bool keypool_has_keys;
-    if (internal && CanSupportFeature(FEATURE_HD_SPLIT)) {
-        keypool_has_keys = setInternalKeyPool.size() > 0;
-    } else {
-        keypool_has_keys = KeypoolCountExternalKeys() > 0;
+    bool result = true;
+    for (OutputType t : output_types) {
+        result &= GetScriptPubKeyMan(t, internal)->CanGetAddresses(internal);
     }
-    // If the keypool doesn't have keys, check if we can generate them
-    if (!keypool_has_keys) {
-        return CanGenerateKeys();
-    }
-    return keypool_has_keys;
+    return result;
 }
 
 void CWallet::SetWalletFlag(uint64_t flags)
