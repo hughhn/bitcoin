@@ -213,9 +213,17 @@ WalletCreationStatus CreateWallet(interfaces::Chain& chain, const SecureString& 
             }
 
             // Set a seed for the wallet
-            CPubKey master_pub_key = wallet->GenerateNewSeed();
-            wallet->SetHDSeed(master_pub_key);
-            wallet->NewKeyPool();
+            {
+                LOCK(wallet->cs_wallet);
+                for (bool internal : {false, true}) {
+                    for (OutputType t : output_types) {
+                        auto spk_man = wallet->GetScriptPubKeyMan(t, internal);
+                        if (spk_man) {
+                            spk_man->SetupGeneration();
+                        }
+                    }
+                }
+            }
 
             // Relock the wallet
             wallet->Lock();
