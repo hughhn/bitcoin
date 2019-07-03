@@ -296,7 +296,22 @@ std::unique_ptr<SigningProvider> LegacyScriptPubKeyMan::GetSigningProvider(const
 
 bool LegacyScriptPubKeyMan::CanProvide(const CScript& script, SignatureData& sigdata)
 {
-    return false;
+    if (IsMine(script) != ISMINE_NO) {
+        return true;
+    } else if (HaveCScript(CScriptID(script))) {
+        return true;
+    } else {
+        ProduceSignature(*this, DUMMY_SIGNATURE_CREATOR, script, sigdata);
+        if (!sigdata.signatures.empty()) {
+            // If we could make signatures, make sure we have the private key
+            bool has_privkeys = false;
+            for (const auto& key_sig_pair : sigdata.signatures) {
+                has_privkeys |= HaveKey(key_sig_pair.first);
+            }
+            return has_privkeys;
+        }
+        return false;
+    }
 }
 
 const CKeyMetadata* LegacyScriptPubKeyMan::GetMetadata(uint160 id) const
