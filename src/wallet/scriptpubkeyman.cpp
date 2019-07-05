@@ -1479,6 +1479,10 @@ bool DescriptorScriptPubKeyMan::GetNewDestination(const OutputType type, CTxDest
 
 isminetype DescriptorScriptPubKeyMan::IsMine(const CScript& script) const
 {
+    LOCK(cs_desc_man);
+    if (m_map_script_pub_keys.count(script) > 0) {
+        return ISMINE_SPENDABLE;
+    }
     return ISMINE_NO;
 }
 
@@ -1584,7 +1588,7 @@ std::unique_ptr<SigningProvider> DescriptorScriptPubKeyMan::GetSigningProvider(c
 
 bool DescriptorScriptPubKeyMan::CanProvide(const CScript& script, SignatureData& sigdata)
 {
-    return false;
+    return IsMine(script);
 }
 
 uint256 DescriptorScriptPubKeyMan::GetID() const
