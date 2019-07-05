@@ -1471,3 +1471,135 @@ bool LegacyScriptPubKeyMan::ImportScriptPubKeys(const std::set<CScript>& script_
 }
 
 void LegacyScriptPubKeyMan::SetType(OutputType type, bool internal) {}
+
+bool DescriptorScriptPubKeyMan::GetNewDestination(const OutputType type, CTxDestination& dest, std::string& error)
+{
+    return false;
+}
+
+isminetype DescriptorScriptPubKeyMan::IsMine(const CScript& script) const
+{
+    return ISMINE_NO;
+}
+
+bool DescriptorScriptPubKeyMan::IsCrypted() const
+{
+    return false;
+}
+
+bool DescriptorScriptPubKeyMan::IsLocked() const
+{
+    return false;
+}
+
+bool DescriptorScriptPubKeyMan::Lock()
+{
+    return false;
+}
+
+bool DescriptorScriptPubKeyMan::Unlock(const CKeyingMaterial& vMasterKeyIn, bool accept_no_keys)
+{
+    return false;
+}
+
+bool DescriptorScriptPubKeyMan::Encrypt(CKeyingMaterial& vMasterKeyIn, WalletBatch* batch)
+{
+    return false;
+}
+
+bool DescriptorScriptPubKeyMan::GetReservedDestination(const OutputType type, bool internal, CTxDestination& address, int64_t& index, CKeyPool& keypool)
+{
+    return false;
+}
+
+void DescriptorScriptPubKeyMan::KeepDestination(int64_t index)
+{
+}
+
+void DescriptorScriptPubKeyMan::ReturnDestination(int64_t index, bool internal, const CTxDestination& addr)
+{
+}
+
+bool DescriptorScriptPubKeyMan::TopUp(unsigned int size)
+{
+    return false;
+}
+
+void DescriptorScriptPubKeyMan::MarkUnusedAddresses(const CScript& script)
+{
+}
+
+void DescriptorScriptPubKeyMan::UpgradeKeyMetadata()
+{
+}
+
+bool DescriptorScriptPubKeyMan::SetupGeneration(bool force)
+{
+    return false;
+}
+
+bool DescriptorScriptPubKeyMan::IsHDEnabled() const
+{
+    return false;
+}
+
+bool DescriptorScriptPubKeyMan::CanGetAddresses(bool internal)
+{
+    return false;
+}
+
+bool DescriptorScriptPubKeyMan::Upgrade(int prev_version, int new_version)
+{
+    return false;
+}
+
+bool DescriptorScriptPubKeyMan::HavePrivateKeys() const
+{
+    return false;
+}
+
+void DescriptorScriptPubKeyMan::RewriteDB()
+{
+}
+
+int64_t DescriptorScriptPubKeyMan::GetOldestKeyPoolTime()
+{
+    return GetTime();
+}
+
+size_t DescriptorScriptPubKeyMan::KeypoolCountExternalKeys()
+{
+    return 0;
+}
+
+unsigned int DescriptorScriptPubKeyMan::GetKeypoolSize() const
+{
+    return 0;
+}
+
+int64_t DescriptorScriptPubKeyMan::GetTimeFirstKey() const
+{
+    return 0;
+}
+
+std::unique_ptr<SigningProvider> DescriptorScriptPubKeyMan::GetSigningProvider(const CScript& script) const
+{
+    return nullptr;
+}
+
+bool DescriptorScriptPubKeyMan::CanProvide(const CScript& script, SignatureData& sigdata)
+{
+    return false;
+}
+
+const CKeyMetadata* DescriptorScriptPubKeyMan::GetMetadata(uint160 id) const
+{
+    return nullptr;
+}
+
+uint256 DescriptorScriptPubKeyMan::GetID() const
+{
+    return uint256();
+}
+
+void DescriptorScriptPubKeyMan::SetType(OutputType type, bool internal) {}
