@@ -5,6 +5,7 @@
 #ifndef BITCOIN_WALLET_SCRIPTPUBKEYMAN_H
 #define BITCOIN_WALLET_SCRIPTPUBKEYMAN_H
 
+#include <script/descriptor.h>
 #include <script/signingprovider.h>
 #include <script/standard.h>
 #include <wallet/crypter.h>
@@ -472,6 +473,62 @@ public:
     bool GetKey(const CKeyID &address, CKey& key) const override { return spk_man->GetKey(address, key); }
     bool HaveKey(const CKeyID &address) const override { return spk_man->HaveKey(address); }
     bool GetKeyOrigin(const CKeyID& keyid, KeyOriginInfo& info) const override { return spk_man->GetKeyOrigin(keyid, info); }
+};
+
+class DescriptorScriptPubKeyMan : public ScriptPubKeyMan
+{
+public:
+    DescriptorScriptPubKeyMan(FlagSetFunc is_set_func, FlagFunc set_flag_func, FlagFuncWithDB unset_flag_func, VersionFunc feature_sup_func, NameFunc wallet_name_func, SetVersionFunc set_version_func, std::shared_ptr<WalletDatabase> database)
+        :   ScriptPubKeyMan(is_set_func, set_flag_func, unset_flag_func, feature_sup_func, wallet_name_func, set_version_func, database)
+        {}
+
+    bool GetNewDestination(const OutputType type, CTxDestination& dest, std::string& error) override;
+    isminetype IsMine(const CScript& script) const override;
+
+    bool IsCrypted() const override;
+    bool IsLocked() const override;
+    bool Lock() override;
+
+    bool Unlock(const CKeyingMaterial& vMasterKeyIn, bool accept_no_keys = false) override;
+    bool Encrypt(CKeyingMaterial& vMasterKeyIn, WalletBatch* batch) override;
+
+    bool GetReservedDestination(const OutputType type, bool internal, CTxDestination& address, int64_t& index, CKeyPool& keypool) override;
+    void KeepDestination(int64_t index) override;
+    void ReturnDestination(int64_t index, bool internal, const CTxDestination& addr) override;
+
+    bool TopUp(unsigned int size = 0) override;
+
+    void MarkUnusedAddresses(const CScript& script) override;
+
+    void UpgradeKeyMetadata() override;
+
+    bool IsHDEnabled() const override;
+
+    bool SetupGeneration(bool force = false) override;
+
+    bool Upgrade(int prev_version, int new_version) override;
+
+    bool HavePrivateKeys() const override;
+
+    void RewriteDB() override;
+
+    int64_t GetOldestKeyPoolTime() override;
+    size_t KeypoolCountExternalKeys() override;
+    unsigned int GetKeypoolSize() const override;
+
+    int64_t GetTimeFirstKey() const override;
+
+    const CKeyMetadata* GetMetadata(uint160 id) const override;
+
+    bool CanGetAddresses(bool internal = false) override;
+
+    std::unique_ptr<SigningProvider> GetSigningProvider(const CScript& script) const override;
+
+    bool CanProvide(const CScript& script, SignatureData& sigdata) override;
+
+    uint256 GetID() const override;
+
+    void SetType(OutputType type, bool internal) override;
 };
 
 #endif // BITCOIN_WALLET_SCRIPTPUBKEYMAN_H
