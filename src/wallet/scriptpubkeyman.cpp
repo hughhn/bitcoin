@@ -1611,7 +1611,10 @@ const CKeyMetadata* DescriptorScriptPubKeyMan::GetMetadata(uint160 id) const
 
 uint256 DescriptorScriptPubKeyMan::GetID() const
 {
-    return uint256();
+    std::string desc_str = descriptor.descriptor->ToString();
+    uint256 id;
+    CSHA256().Write((unsigned char*)desc_str.data(), desc_str.size()).Finalize(id.begin());
+    return id;
 }
 
 void DescriptorScriptPubKeyMan::SetType(OutputType type, bool internal) {}
