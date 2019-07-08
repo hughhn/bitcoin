@@ -1552,7 +1552,7 @@ bool DescriptorScriptPubKeyMan::SetupGeneration(bool force)
 
 bool DescriptorScriptPubKeyMan::IsHDEnabled() const
 {
-    return false;
+    return descriptor.descriptor->IsRange();
 }
 
 bool DescriptorScriptPubKeyMan::CanGetAddresses(bool internal)
