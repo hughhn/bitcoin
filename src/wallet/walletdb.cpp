@@ -167,6 +167,8 @@ public:
     bool fAnyUnordered{false};
     int nFileVersion{0};
     std::vector<uint256> vWalletUpgrade;
+    std::map<OutputType, uint256> m_external_spk_managers;
+    std::map<OutputType, uint256> m_internal_spk_managers;
 
     CWalletScanState() {
     }
@@ -420,6 +422,21 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
                 strErr = "Error reading wallet database: Unknown non-tolerable wallet flags found";
                 return false;
             }
+        } else if (strType == "externalspk" || strType == "internalspk") {
+            uint8_t type;
+            ssKey >> type;
+            uint256 id;
+            ssValue >> id;
+
+            bool internal = strType == "internalspk";
+            auto& spk_mans = internal ? wss.m_internal_spk_managers : wss.m_external_spk_managers;
+            spk_mans[static_cast<OutputType>(type)] = id;
+        } else if (strType == "walletdescriptor") {
+            uint256 id;
+            ssKey >> id;
+            WalletDescriptor desc;
+            ssValue >> desc;
+            pwallet->LoadDescriptorScriptPubKeyMan(id, desc);
         } else if (strType != "bestblock" && strType != "bestblock_nomerkle" &&
                 strType != "minversion" && strType != "acentry") {
             wss.m_unknown_records++;
@@ -511,6 +528,14 @@ DBErrors WalletBatch::LoadWallet(CWallet* pwallet)
     }
     catch (...) {
         result = DBErrors::CORRUPT;
+    }
+
+    // Set the active ScriptPubKeyMans
+    for (auto spk_man_pair : wss.m_external_spk_managers) {
+        pwallet->SetActiveScriptPubKeyMan(spk_man_pair.second, spk_man_pair.first, false);
+    }
+    for (auto spk_man_pair : wss.m_internal_spk_managers) {
+        pwallet->SetActiveScriptPubKeyMan(spk_man_pair.second, spk_man_pair.first, true);
     }
 
     if (fNoncriticalErrors && result == DBErrors::LOAD_OK)
