@@ -4072,6 +4072,9 @@ std::unique_ptr<SigningProvider> CWallet::GetSigningProvider(const CScript& scri
 
 std::shared_ptr<LegacyScriptPubKeyMan> CWallet::GetLegacyScriptPubKeyMan()
 {
+    if (IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
+        return nullptr;
+    }
     SetupLegacyScriptPubKeyMan();
     return std::dynamic_pointer_cast<LegacyScriptPubKeyMan>(m_internal_spk_managers[OutputType::LEGACY]);
 }
