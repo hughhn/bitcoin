@@ -4142,3 +4142,17 @@ void CWallet::ConnectScriptPubKeyManNotifiers()
         spk_man_pair.second->NotifyCanGetAddressesChanged.connect(NotifyCanGetAddressesChanged);
     }
 }
+
+void CWallet::LoadDescriptorScriptPubKeyMan(uint256 id, WalletDescriptor& desc)
+{
+    auto spk_manager = std::shared_ptr<ScriptPubKeyMan>(new DescriptorScriptPubKeyMan(std::bind(&CWallet::IsWalletFlagSet, this, std::placeholders::_1), std::bind(&CWallet::SetWalletFlag, this, std::placeholders::_1), std::bind(&CWallet::UnsetWalletFlagWithDB, this, std::placeholders::_1, std::placeholders::_2), std::bind(&CWallet::CanSupportFeature, this, std::placeholders::_1), std::bind(&CWallet::GetDisplayName, this), std::bind(&CWallet::SetMinVersion, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), database, desc));
+    m_spk_managers[id] = spk_manager;
+}
+
+void CWallet::SetActiveScriptPubKeyMan(uint256 id, OutputType type, bool internal)
+{
+    auto& spk_mans = internal ? m_internal_spk_managers : m_external_spk_managers;
+    auto spk_man = m_spk_managers.at(id);
+    spk_man->SetType(type, internal);
+    spk_mans[type] = spk_man;
+}
