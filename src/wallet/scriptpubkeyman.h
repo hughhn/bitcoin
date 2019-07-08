@@ -480,9 +480,15 @@ class DescriptorScriptPubKeyMan : public ScriptPubKeyMan
 private:
     mutable CCriticalSection cs_desc_man;
 
+    WalletDescriptor descriptor;
+
+    using ScriptPubKeyMap = std::map<CScript, uint32_t>; // Map of scripts to descriptor range index
+
+    ScriptPubKeyMap m_map_script_pub_keys GUARDED_BY(cs_desc_man);
 public:
-    DescriptorScriptPubKeyMan(FlagSetFunc is_set_func, FlagFunc set_flag_func, FlagFuncWithDB unset_flag_func, VersionFunc feature_sup_func, NameFunc wallet_name_func, SetVersionFunc set_version_func, std::shared_ptr<WalletDatabase> database)
-        :   ScriptPubKeyMan(is_set_func, set_flag_func, unset_flag_func, feature_sup_func, wallet_name_func, set_version_func, database)
+    DescriptorScriptPubKeyMan(FlagSetFunc is_set_func, FlagFunc set_flag_func, FlagFuncWithDB unset_flag_func, VersionFunc feature_sup_func, NameFunc wallet_name_func, SetVersionFunc set_version_func, std::shared_ptr<WalletDatabase> database, WalletDescriptor& descriptor)
+        :   ScriptPubKeyMan(is_set_func, set_flag_func, unset_flag_func, feature_sup_func, wallet_name_func, set_version_func, database),
+            descriptor(descriptor)
         {}
 
     bool GetNewDestination(const OutputType type, CTxDestination& dest, std::string& error) override;
