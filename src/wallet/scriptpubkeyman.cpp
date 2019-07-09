@@ -1630,3 +1630,32 @@ void DescriptorScriptPubKeyMan::SetCache(std::vector<std::vector<unsigned char>>
         }
     }
 }
+
+bool DescriptorScriptPubKeyMan::AddKey(const CKeyID& key_id, const CKey& key)
+{
+    LOCK(cs_desc_man);
+    m_map_keys[key_id] = key;
+    return true;
+}
+
+bool DescriptorScriptPubKeyMan::SetCrypted()
+{
+    LOCK(cs_desc_man);
+    if (m_use_crypto)
+        return true;
+    if (!m_map_keys.empty())
+        return false;
+    m_use_crypto = true;
+    return true;
+}
+
+bool DescriptorScriptPubKeyMan::AddCryptedKey(const CKeyID& key_id, const CPubKey& pubkey, const std::vector<unsigned char>& crypted_key)
+{
+    LOCK(cs_desc_man);
+    if (!SetCrypted()) {
+        return false;
+    }
+
+    m_map_crypted_keys[key_id] = make_pair(pubkey, crypted_key);
+    return true;
+}
