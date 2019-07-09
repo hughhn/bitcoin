@@ -534,15 +534,11 @@ public:
 
     void MarkUnusedAddresses(const CScript& script) override;
 
-    void UpgradeKeyMetadata() override;
-
     bool IsHDEnabled() const override;
 
     bool SetupGeneration(bool force = false) override;
 
     bool HavePrivateKeys() const override;
-
-    void RewriteDB() override;
 
     int64_t GetOldestKeyPoolTime() override;
     size_t KeypoolCountExternalKeys() override;
