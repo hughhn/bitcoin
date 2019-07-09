@@ -483,19 +483,37 @@ private:
     WalletDescriptor descriptor;
 
     using ScriptPubKeyMap = std::map<CScript, int32_t>; // Map of scripts to descriptor range index
+    using CryptedKeyMap = std::map<CKeyID, std::pair<CPubKey, std::vector<unsigned char>>>;
+    using KeyMap = std::map<CKeyID, CKey>;
 
     ScriptPubKeyMap m_map_script_pub_keys GUARDED_BY(cs_desc_man);
 
     OutputType address_type;
     bool internal;
+
+    KeyMap m_map_keys GUARDED_BY(cs_desc_man);
+    CryptedKeyMap m_map_crypted_keys GUARDED_BY(cs_desc_man);
+
+    //! if m_use_crypto is true, m_map_keys must be empty
+    //! if m_use_crypto is false, m_master_key must be empty
+    std::atomic<bool> m_use_crypto;
+
+    bool SetCrypted();
+
+    //! keeps track of whether Unlock has run a thorough check before
+    bool m_decryption_thoroughly_checked;
+
+    CKeyingMaterial m_master_key GUARDED_BY(cs_desc_man);
 public:
     DescriptorScriptPubKeyMan(FlagSetFunc is_set_func, FlagFunc set_flag_func, FlagFuncWithDB unset_flag_func, VersionFunc feature_sup_func, NameFunc wallet_name_func, SetVersionFunc set_version_func, std::shared_ptr<WalletDatabase> database, WalletDescriptor& descriptor)
         :   ScriptPubKeyMan(is_set_func, set_flag_func, unset_flag_func, feature_sup_func, wallet_name_func, set_version_func, database),
-            descriptor(descriptor)
+            descriptor(descriptor),
+            m_use_crypto(false), m_decryption_thoroughly_checked(false)
         {}
     DescriptorScriptPubKeyMan(FlagSetFunc is_set_func, FlagFunc set_flag_func, FlagFuncWithDB unset_flag_func, VersionFunc feature_sup_func, NameFunc wallet_name_func, SetVersionFunc set_version_func, std::shared_ptr<WalletDatabase> database, OutputType address_type, bool internal)
         :   ScriptPubKeyMan(is_set_func, set_flag_func, unset_flag_func, feature_sup_func, wallet_name_func, set_version_func, database),
-            address_type(address_type), internal(internal)
+            address_type(address_type), internal(internal),
+            m_use_crypto(false), m_decryption_thoroughly_checked(false)
         {}
 
     bool GetNewDestination(const OutputType type, CTxDestination& dest, std::string& error) override;
@@ -547,6 +565,9 @@ public:
     void SetType(OutputType type, bool internal) override;
 
     void SetCache(std::vector<std::vector<unsigned char>> cache);
+
+    bool AddKey(const CKeyID& key_id, const CKey& key);
+    bool AddCryptedKey(const CKeyID& key_id, const CPubKey& pubkey, const std::vector<unsigned char>& crypted_key);
 };
 
 #endif // BITCOIN_WALLET_SCRIPTPUBKEYMAN_H
