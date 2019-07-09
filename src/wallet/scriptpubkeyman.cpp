@@ -1488,17 +1488,29 @@ isminetype DescriptorScriptPubKeyMan::IsMine(const CScript& script) const
 
 bool DescriptorScriptPubKeyMan::IsCrypted() const
 {
-    return false;
+    return m_use_crypto;
 }
 
 bool DescriptorScriptPubKeyMan::IsLocked() const
 {
-    return false;
+    if (!IsCrypted()) {
+        return false;
+    }
+    LOCK(cs_desc_man);
+    return m_master_key.empty();
 }
 
 bool DescriptorScriptPubKeyMan::Lock()
 {
-    return false;
+    if (!SetCrypted())
+        return false;
+
+    {
+        LOCK(cs_desc_man);
+        m_master_key.clear();
+    }
+
+    return true;
 }
 
 bool DescriptorScriptPubKeyMan::Unlock(const CKeyingMaterial& vMasterKeyIn, bool accept_no_keys)
