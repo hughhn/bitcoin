@@ -1553,9 +1553,7 @@ void DescriptorScriptPubKeyMan::MarkUnusedAddresses(const CScript& script)
     }
 }
 
-void DescriptorScriptPubKeyMan::UpgradeKeyMetadata()
-{
-}
+void DescriptorScriptPubKeyMan::UpgradeKeyMetadata() {}
 
 bool DescriptorScriptPubKeyMan::SetupGeneration(bool force)
 {
@@ -1569,7 +1567,7 @@ bool DescriptorScriptPubKeyMan::IsHDEnabled() const
 
 bool DescriptorScriptPubKeyMan::CanGetAddresses(bool internal)
 {
-    return false;
+    return HavePrivateKeys() || descriptor.next_index < descriptor.range_end;
 }
 
 bool DescriptorScriptPubKeyMan::Upgrade(int prev_version, int new_version)
@@ -1579,12 +1577,11 @@ bool DescriptorScriptPubKeyMan::Upgrade(int prev_version, int new_version)
 
 bool DescriptorScriptPubKeyMan::HavePrivateKeys() const
 {
-    return false;
+    LOCK(cs_desc_man);
+    return m_map_keys.size() > 0 || m_map_crypted_keys.size() > 0;
 }
 
-void DescriptorScriptPubKeyMan::RewriteDB()
-{
-}
+void DescriptorScriptPubKeyMan::RewriteDB() {}
 
 int64_t DescriptorScriptPubKeyMan::GetOldestKeyPoolTime()
 {
@@ -1593,17 +1590,20 @@ int64_t DescriptorScriptPubKeyMan::GetOldestKeyPoolTime()
 
 size_t DescriptorScriptPubKeyMan::KeypoolCountExternalKeys()
 {
-    return 0;
+    if (internal) {
+        return 0;
+    }
+    return descriptor.range_end - descriptor.next_index;
 }
 
 unsigned int DescriptorScriptPubKeyMan::GetKeypoolSize() const
 {
-    return 0;
+    return descriptor.range_end - descriptor.next_index;
 }
 
 int64_t DescriptorScriptPubKeyMan::GetTimeFirstKey() const
 {
-    return 0;
+    return descriptor.creation_time;
 }
 
 std::unique_ptr<SigningProvider> DescriptorScriptPubKeyMan::GetSigningProvider(const CScript& script) const
