@@ -1533,9 +1533,59 @@ void DescriptorScriptPubKeyMan::ReturnDestination(int64_t index, bool internal, 
 {
 }
 
+std::map<CKeyID, CKey> DescriptorScriptPubKeyMan::GetKeys() const
+{
+    AssertLockHeld(cs_desc_man);
+    if (IsCrypted() && !IsLocked()) {
+        KeyMap keys;
+        for (auto key_pair : m_map_crypted_keys) {
+            const CPubKey& pubkey = key_pair.second.first;
+            const std::vector<unsigned char>& crypted_secret = key_pair.second.second;
+            CKey key;
+            DecryptKey(m_master_key, crypted_secret, pubkey, key);
+            keys[pubkey.GetID()] = key;
+        }
+        return keys;
+    }
+    return m_map_keys;
+}
+
 bool DescriptorScriptPubKeyMan::TopUp(unsigned int size)
 {
-    return false;
+    if (IsLocked()) return false;
+
+    LOCK(cs_desc_man);
+    unsigned int target_size;
+    if (size > 0)
+        target_size = size;
+    else
+        target_size = std::max(gArgs.GetArg("-keypool", DEFAULT_KEYPOOL_SIZE), (int64_t) 0);
+
+    int32_t missing = std::max(std::max((int)target_size, 1) - (descriptor.range_end - descriptor.next_index), 0);
+
+    FlatSigningProvider provider;
+    provider.keys = GetKeys();
+
+    WalletBatch batch(*m_database);
+    uint256 id = GetID();
+    for (int32_t i = descriptor.range_end; i < descriptor.range_end + missing; ++i) {
+        FlatSigningProvider out_keys;
+        std::vector<CScript> scripts_temp;
+        std::vector<unsigned char> cache;
+        if (!descriptor.descriptor->Expand(i, provider, scripts_temp, out_keys, &cache)) return false;
+        // Add all of the scriptPubKeys to the scriptPubKey set
+        for (const CScript& script : scripts_temp) {
+            m_map_script_pub_keys[script] = i;
+        }
+        // Write the cache
+        if (!batch.WriteDescriptorCache(id, i, cache)) {
+            throw std::runtime_error(std::string(__func__) + ": writing cache item failed");
+        }
+        descriptor.cache.push_back(std::move(cache));
+    }
+    descriptor.range_end += missing;
+    batch.WriteDescriptor(GetID(), descriptor);
+    return true;
 }
 
 void DescriptorScriptPubKeyMan::MarkUnusedAddresses(const CScript& script)

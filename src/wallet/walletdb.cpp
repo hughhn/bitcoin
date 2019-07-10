@@ -181,6 +181,11 @@ bool WalletBatch::WriteDescriptor(const uint256& desc_id, const WalletDescriptor
     return WriteIC(make_pair(std::string("walletdescriptor"), desc_id), descriptor);
 }
 
+bool WalletBatch::WriteDescriptorCache(const uint256& desc_id, int32_t index, std::vector<unsigned char> cache_item)
+{
+    return WriteIC(make_pair(make_pair(std::string("walletdescriptorcache"), desc_id), index), cache_item);
+}
+
 class CWalletScanState {
 public:
     unsigned int nKeys{0};
