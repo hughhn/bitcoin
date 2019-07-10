@@ -156,6 +156,31 @@ bool WalletBatch::WriteMinVersion(int nVersion)
     return WriteIC(std::string("minversion"), nVersion);
 }
 
+bool WalletBatch::WriteDescriptorKey(const uint256& desc_id, const CPubKey& pubkey, const CPrivKey& privkey)
+{
+    // hash pubkey/privkey to accelerate wallet load
+    std::vector<unsigned char> key;
+    key.reserve(pubkey.size() + privkey.size());
+    key.insert(key.end(), pubkey.begin(), pubkey.end());
+    key.insert(key.end(), privkey.begin(), privkey.end());
+
+    return WriteIC(std::make_pair(std::string("walletdescriptorkey"), std::make_pair(desc_id, pubkey)), std::make_pair(privkey, Hash(key.begin(), key.end())), false);
+}
+
+bool WalletBatch::WriteCryptedDescriptorKey(const uint256& desc_id, const CPubKey& pubkey, const std::vector<unsigned char>& secret)
+{
+    if (!WriteIC(std::make_pair(std::string("walletdescriptorckey"), std::make_pair(desc_id, pubkey)), secret, false)) {
+        return false;
+    }
+    EraseIC(std::make_pair(std::string("walletdescriptorkey"), std::make_pair(desc_id, pubkey)));
+    return true;
+}
+
+bool WalletBatch::WriteDescriptor(const uint256& desc_id, const WalletDescriptor& descriptor)
+{
+    return WriteIC(make_pair(std::string("walletdescriptor"), desc_id), descriptor);
+}
+
 class CWalletScanState {
 public:
     unsigned int nKeys{0};
