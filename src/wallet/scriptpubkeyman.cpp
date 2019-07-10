@@ -1471,7 +1471,66 @@ void LegacyScriptPubKeyMan::SetType(OutputType type, bool internal) {}
 
 bool DescriptorScriptPubKeyMan::GetNewDestination(const OutputType type, CTxDestination& dest, std::string& error)
 {
-    return false;
+    if (!CanGetAddresses(internal)) {
+        error = "No private keys available";
+        return false;
+    }
+    {
+        LOCK(cs_desc_man);
+        if (descriptor.descriptor->IsSingleType() && type != address_type) {
+            throw std::runtime_error(std::string(__func__) + ": Types are inconsistent");
+        }
+
+        TopUp();
+
+        // Get the scriptPubKey from the descriptor
+        FlatSigningProvider out_keys;
+        std::vector<CScript> scripts_temp;
+        if (descriptor.cache.size() <= (unsigned int)(descriptor.next_index - descriptor.range_start) && !TopUp(1)) {
+            // We can't generate anymore keys
+            error = "Unable to generate more addresses, try unlocking your wallet";
+            return false;
+        }
+        descriptor.descriptor->ExpandFromCache(descriptor.next_index, descriptor.cache[descriptor.next_index - descriptor.range_start], scripts_temp, out_keys);
+
+        if (descriptor.descriptor->IsSingleType() && !ExtractDestination(scripts_temp[0], dest)) {
+            throw std::runtime_error(std::string(__func__) + ": Types are inconsistent. Stored type does not match type of newly generated address");
+        } else if (!descriptor.descriptor->IsSingleType()) {
+            // This is a combo descriptor, get the correct type
+            bool found = false;
+            for (auto script : scripts_temp) {
+                if (!ExtractDestination(script, dest)) return false;
+                switch (type) {
+                case OutputType::LEGACY: {
+                    if (dest.which() == 1 /* PKHash */) {
+                        found = true;
+                    }
+                    break;
+                }
+                case OutputType::P2SH_SEGWIT: {
+                    // Combo only works for keys, so there is no ambiguity with p2sh
+                    if (dest.which() == 2 /* ScriptHash */) {
+                        found = true;
+                    }
+                    break;
+                }
+                case OutputType::BECH32: {
+                    if (dest.which() == 4 /* WitnessV0KeyHash */) {
+                        found = true;
+                    }
+                    break;
+                }
+                default:
+                    throw std::runtime_error(std::string(__func__) + ": Types are inconsistent. Combo descriptor did not give an adress with the expected type");
+                }
+                if (found) break;
+            }
+            if (!found) return false;
+        }
+        descriptor.next_index++;
+        WalletBatch(*m_database).WriteDescriptor(GetID(), descriptor);
+        return true;
+    }
 }
 
 isminetype DescriptorScriptPubKeyMan::IsMine(const CScript& script) const
