@@ -186,6 +186,15 @@ bool WalletBatch::WriteDescriptorCache(const uint256& desc_id, int32_t index, st
     return WriteIC(make_pair(make_pair(std::string("walletdescriptorcache"), desc_id), index), cache_item);
 }
 
+bool WalletBatch::WriteActiveScriptPubKeyMan(uint8_t type, const uint256& id, bool internal)
+{
+    std::string key = "externalspk";
+    if (internal) {
+        key = "internalspk";
+    }
+    return WriteIC(make_pair(key, type), id);
+}
+
 class CWalletScanState {
 public:
     unsigned int nKeys{0};
