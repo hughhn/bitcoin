@@ -1637,10 +1637,16 @@ bool DescriptorScriptPubKeyMan::GetReservedDestination(const OutputType type, bo
 
 void DescriptorScriptPubKeyMan::KeepDestination(int64_t index)
 {
+    // Do nothing. We don't need to do anything to keep
 }
 
 void DescriptorScriptPubKeyMan::ReturnDestination(int64_t index, bool internal, const CTxDestination& addr)
 {
+    // Only return when the index was the most recent
+    if (descriptor.next_index - 1 == index) {
+        descriptor.next_index--;
+    }
+    WalletBatch(*m_database).WriteDescriptor(GetID(), descriptor);
 }
 
 std::map<CKeyID, CKey> DescriptorScriptPubKeyMan::GetKeys() const
