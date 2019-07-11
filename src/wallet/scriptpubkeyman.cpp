@@ -1630,7 +1630,10 @@ bool DescriptorScriptPubKeyMan::Encrypt(CKeyingMaterial& master_key_in, WalletBa
 
 bool DescriptorScriptPubKeyMan::GetReservedDestination(const OutputType type, bool internal, CTxDestination& address, int64_t& index, CKeyPool& keypool)
 {
-    return false;
+    std::string error;
+    bool result = GetNewDestination(type, address, error);
+    index = descriptor.next_index - 1;
+    return result;
 }
 
 void DescriptorScriptPubKeyMan::ReturnDestination(int64_t index, bool internal, const CTxDestination& addr)
