@@ -213,6 +213,11 @@ std::shared_ptr<CWallet> CreateWallet(interfaces::Chain& chain, const std::strin
             // Set a seed for the wallet
             {
                 LOCK(wallet->cs_wallet);
+
+                if (wallet->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
+                    wallet->SetupDescriptorScriptPubKeyMans();
+                }
+
                 for (OutputType t : output_types) {
                     wallet->GetScriptPubKeyMan(t, false)->SetupGeneration();
                     wallet->GetScriptPubKeyMan(t, true)->SetupGeneration();
@@ -3630,6 +3635,9 @@ std::shared_ptr<CWallet> CWallet::CreateWalletFromFile(interfaces::Chain& chain,
 
         if (!(wallet_creation_flags & (WALLET_FLAG_DISABLE_PRIVATE_KEYS | WALLET_FLAG_BLANK_WALLET))) {
             LOCK(walletInstance->cs_wallet);
+            if (walletInstance->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
+                walletInstance->SetupDescriptorScriptPubKeyMans();
+            }
             for (OutputType t : output_types) {
                 walletInstance->GetScriptPubKeyMan(t, false)->SetupGeneration();
                 walletInstance->GetScriptPubKeyMan(t, true)->SetupGeneration();
@@ -4116,6 +4124,35 @@ void CWallet::LoadDescriptorScriptPubKeyMan(uint256 id, WalletDescriptor& desc)
 {
     auto spk_manager = std::shared_ptr<ScriptPubKeyMan>(new DescriptorScriptPubKeyMan(std::bind(&CWallet::IsWalletFlagSet, this, std::placeholders::_1), std::bind(&CWallet::SetWalletFlag, this, std::placeholders::_1), std::bind(&CWallet::UnsetWalletFlagWithDB, this, std::placeholders::_1, std::placeholders::_2), std::bind(&CWallet::CanSupportFeature, this, std::placeholders::_1), std::bind(&CWallet::GetDisplayName, this), std::bind(&CWallet::SetMinVersion, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), database, desc));
     m_spk_managers[id] = spk_manager;
+}
+
+void CWallet::SetupDescriptorScriptPubKeyMans()
+{
+    AssertLockHeld(cs_wallet);
+    for (bool internal : {false, true}) {
+        for (OutputType t : output_types) {
+            auto spk_manager = std::shared_ptr<ScriptPubKeyMan>(new DescriptorScriptPubKeyMan(std::bind(&CWallet::IsWalletFlagSet, this, std::placeholders::_1), std::bind(&CWallet::SetWalletFlag, this, std::placeholders::_1), std::bind(&CWallet::UnsetWalletFlagWithDB, this, std::placeholders::_1, std::placeholders::_2), std::bind(&CWallet::CanSupportFeature, this, std::placeholders::_1), std::bind(&CWallet::GetDisplayName, this), std::bind(&CWallet::SetMinVersion, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), database, t, internal));
+            if (IsCrypted()) {
+                if (IsLocked()) {
+                    throw std::runtime_error(std::string(__func__) + ": Wallet is locked, cannot setup new descriptors");
+                }
+                if (!spk_manager->Unlock(vMasterKey) && !spk_manager->Encrypt(vMasterKey, encrypted_batch)) {
+                    throw std::runtime_error(std::string(__func__) + ": Could not encrypt new descriptors");
+                }
+            }
+            spk_manager->SetupGeneration();
+            m_spk_managers[spk_manager->GetID()] = spk_manager;
+            if (internal) {
+                m_internal_spk_managers[t] = spk_manager;
+            } else {
+                m_external_spk_managers[t] = spk_manager;
+            }
+            WalletBatch batch(*database);
+            if (!batch.WriteActiveScriptPubKeyMan(static_cast<uint8_t>(t), spk_manager->GetID(), internal)) {
+                throw std::runtime_error(std::string(__func__) + ": writing active ScriptPubKeyMan id failed");
+            }
+        }
+    }
 }
 
 void CWallet::SetActiveScriptPubKeyMan(uint256 id, OutputType type, bool internal)
