@@ -254,6 +254,8 @@ public:
     bool WriteDescriptor(const uint256& desc_id, const WalletDescriptor& descriptor);
     bool WriteDescriptorCache(const uint256& desc_id, int32_t index, std::vector<unsigned char> cache_item);
 
+    bool WriteActiveScriptPubKeyMan(uint8_t type, const uint256& id, bool internal);
+
     /// Write destination data key,value tuple to database
     bool WriteDestData(const std::string &address, const std::string &key, const std::string &value);
     /// Erase destination data tuple from wallet database
