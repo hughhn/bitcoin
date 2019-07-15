@@ -3776,6 +3776,12 @@ UniValue getaddressinfo(const JSONRPCRequest& request)
                 ret.pushKV("hdseedid", meta->hd_seed_id.GetHex());
                 ret.pushKV("hdmasterfingerprint", HexStr(meta->key_origin.fingerprint, meta->key_origin.fingerprint + 4));
             }
+        } else if (provider) {
+            KeyOriginInfo orig;
+            if (provider->GetKeyOrigin(key_id, orig)) {
+                ret.pushKV("hdkeypath", WriteHDKeypath(orig.path));
+                ret.pushKV("hdmasterfingerprint", HexStr(orig.fingerprint, orig.fingerprint + 4));
+            }
         }
     }
 
