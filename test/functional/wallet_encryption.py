@@ -21,7 +21,14 @@ class WalletEncryptionTest(BitcoinTestFramework):
     def skip_test_if_missing_module(self):
         self.skip_if_no_wallet()
 
+    def add_options(self, parser):
+        parser.add_argument('--descriptors', action='store_true', dest="descriptors", help="Run test using a descriptor wallet", default=False)
+
     def run_test(self):
+        if self.options.descriptors:
+            self.nodes[0].createwallet(wallet_name='desc', descriptors=True)
+            self.nodes[0].unloadwallet('')
+
         passphrase = "WalletPassphrase"
         passphrase2 = "SecondWalletPassphrase"
 
