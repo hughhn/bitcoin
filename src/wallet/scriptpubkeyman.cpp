@@ -1466,3 +1466,5 @@ bool LegacyScriptPubKeyMan::ImportScriptPubKeys(const std::set<CScript>& script_
     }
     return true;
 }
+
+void LegacyScriptPubKeyMan::SetType(OutputType type, bool internal) {}
