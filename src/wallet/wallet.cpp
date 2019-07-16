@@ -578,6 +578,11 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
         Lock();
         Unlock(strWalletPassphrase);
 
+        // If we are using descriptors, make new descriptors
+        if (IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS) && !IsWalletFlagSet(WALLET_FLAG_BLANK_WALLET)) {
+            SetupDescriptorScriptPubKeyMans();
+        }
+
         // if we are using HD, replace the HD seed with a new one
         if (IsHDEnabled()) {
             for (auto spk_man_pair : m_spk_managers) {
