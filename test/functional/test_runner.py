@@ -88,6 +88,7 @@ BASE_SCRIPTS = [
     'feature_segwit.py',
     # vv Tests less than 2m vv
     'wallet_basic.py',
+    'wallet_basic.py --descriptors',
     'wallet_labels.py',
     'p2p_segwit.py',
     'p2p_timeouts.py',
