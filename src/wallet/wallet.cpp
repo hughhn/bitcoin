@@ -1280,6 +1280,7 @@ bool CWallet::IsHDEnabled() const
 bool CWallet::CanGetAddresses(bool internal)
 {
     LOCK(cs_wallet);
+    if (m_spk_managers.empty()) return false;
     bool result = true;
     for (OutputType t : output_types) {
         result &= GetScriptPubKeyMan(t, internal)->CanGetAddresses(internal);
@@ -3054,6 +3055,9 @@ unsigned int CWallet::GetKeyPoolSize() const
 bool CWallet::TopUpKeyPool(unsigned int kpSize)
 {
     LOCK(cs_wallet);
+    if (IsWalletFlagSet(WALLET_FLAG_BLANK_WALLET) || IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS)) {
+        return false;
+    }
     bool res = true;
     for (OutputType t : output_types) {
         res &= GetScriptPubKeyMan(t, false)->TopUp(kpSize);
