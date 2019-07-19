@@ -218,6 +218,8 @@ public:
 
     /** Keypool has new keys */
     boost::signals2::signal<void ()> NotifyCanGetAddressesChanged;
+
+    virtual bool HasWalletDescriptor(const WalletDescriptor& desc) const { return false; }
 };
 
 class LegacyScriptPubKeyMan : public ScriptPubKeyMan, public FillableSigningProvider
@@ -568,10 +570,17 @@ public:
 
     void SetType(OutputType type, bool internal) override;
 
+    bool HasWalletDescriptor(const WalletDescriptor& desc) const override;
+
     void SetCache(std::vector<std::vector<unsigned char>> cache);
 
     bool AddKey(const CKeyID& key_id, const CKey& key);
     bool AddCryptedKey(const CKeyID& key_id, const CPubKey& pubkey, const std::vector<unsigned char>& crypted_key);
+
+    void AddDescriptorKeyWithDB(const CKey& key, const CPubKey &pubkey);
+    void WriteDescriptor();
+
+    const std::vector<CScript> GetScriptPubKeys() const;
 };
 
 #endif // BITCOIN_WALLET_SCRIPTPUBKEYMAN_H

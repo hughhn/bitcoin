@@ -4171,3 +4171,54 @@ void CWallet::SetActiveScriptPubKeyMan(uint256 id, OutputType type, bool interna
     spk_man->SetType(type, internal);
     spk_mans[type] = spk_man;
 }
+
+bool CWallet::HasWalletDescriptor(const WalletDescriptor& desc) const
+{
+    if (!IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
+        return false;
+    }
+
+    for (auto spk_man_pair : m_spk_managers) {
+        if (spk_man_pair.second->HasWalletDescriptor(desc)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+std::shared_ptr<ScriptPubKeyMan> CWallet::AddWalletDescriptor(WalletDescriptor& desc, FlatSigningProvider& signing_provider, const std::string& label)
+{
+    if (!IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
+        return nullptr;
+    }
+
+    auto spk_manager = std::shared_ptr<DescriptorScriptPubKeyMan>(new DescriptorScriptPubKeyMan(std::bind(&CWallet::IsWalletFlagSet, this, std::placeholders::_1), std::bind(&CWallet::SetWalletFlag, this, std::placeholders::_1), std::bind(&CWallet::UnsetWalletFlagWithDB, this, std::placeholders::_1, std::placeholders::_2), std::bind(&CWallet::CanSupportFeature, this, std::placeholders::_1), std::bind(&CWallet::GetDisplayName, this), std::bind(&CWallet::SetMinVersion, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), database, desc));
+    m_spk_managers[spk_manager->GetID()] = spk_manager;
+
+    // Save the descriptor & the privkeys from the descriptor to DB
+    spk_manager->WriteDescriptor();
+    for (const auto& entry : signing_provider.keys) {
+        const CKey& key = entry.second;
+        spk_manager->AddDescriptorKeyWithDB(key, key.GetPubKey());
+    }
+
+    // Top up key pool, the manager will generate new scriptPubKeys internally
+    spk_manager->TopUp(0 /* use default keypool size */);
+
+    // Get the scriptPubKeys and apply the label if necessary
+    // TODO: label is not persisted here so next time TopUp() is called
+    // the new scriptPubKeys won't have a label
+    if (!label.empty()) {
+        LOCK(cs_wallet);
+        for (const CScript& script : spk_manager->GetScriptPubKeys()) {
+            CTxDestination dest;
+            ExtractDestination(script, dest);
+            if (IsValidDestination(dest) || mapAddressBook.count(dest) == 0) {
+                SetAddressBook(dest, label, "receive");
+            }
+        }
+    }
+
+    return spk_manager;
+}
