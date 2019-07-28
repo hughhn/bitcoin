@@ -4073,17 +4073,19 @@ std::set<std::shared_ptr<ScriptPubKeyMan>> CWallet::GetActiveScriptPubKeyMans() 
 std::shared_ptr<ScriptPubKeyMan> CWallet::GetScriptPubKeyMan(const OutputType& type, bool internal) const
 {
     if (internal) {
-        if (m_internal_spk_managers.size() != output_types.size()) {
-            WalletLogPrintf("Missing some internal scriptPubKey Managers. Expecting %d, got %d\n", output_types.size(), m_internal_spk_managers.size());
+        std::map<OutputType, std::shared_ptr<ScriptPubKeyMan>>::const_iterator it = m_internal_spk_managers.find(type);
+        if (it == m_internal_spk_managers.end()) {
+            WalletLogPrintf("Internal scriptPubKey Manager for output type %d does not exist\n", static_cast<int>(type));
             return nullptr;
         }
-        return m_internal_spk_managers.at(type);
+        return it->second;
     } else {
-        if (m_external_spk_managers.size() != output_types.size()) {
-            WalletLogPrintf("Missing some external scriptPubKey Managers. Expecting %d, got %d\n", output_types.size(), m_external_spk_managers.size());
+        std::map<OutputType, std::shared_ptr<ScriptPubKeyMan>>::const_iterator it = m_external_spk_managers.find(type);
+        if (it == m_external_spk_managers.end()) {
+            WalletLogPrintf("External scriptPubKey Manager for output type %d does not exist\n", static_cast<int>(type));
             return nullptr;
         }
-        return m_external_spk_managers.at(type);
+        return it->second;
     }
 }
 
