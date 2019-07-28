@@ -1282,9 +1282,13 @@ bool CWallet::CanGetAddresses(bool internal)
 {
     LOCK(cs_wallet);
     if (m_spk_managers.empty()) return false;
-    bool result = true;
+    bool result = false;
     for (OutputType t : output_types) {
-        result &= GetScriptPubKeyMan(t, internal)->CanGetAddresses(internal);
+        auto spk_man = GetScriptPubKeyMan(t, internal);
+        if (spk_man && spk_man->CanGetAddresses(internal)) {
+            result = true;
+            break;
+        }
     }
     return result;
 }
