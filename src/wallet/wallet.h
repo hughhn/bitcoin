@@ -1102,6 +1102,15 @@ public:
 
     //! Create new DescriptoScriptPubKeyMans and add them to the wallet
     void SetupDescriptorScriptPubKeyMans();
+
+    //! Check if the wallet already has a descriptor
+    std::shared_ptr<DescriptorScriptPubKeyMan> HasWalletDescriptor(const WalletDescriptor& desc) const;
+
+    //! Maybe clear an existing descriptor's cache
+    bool MaybeClearWalletDescriptorCache(const WalletDescriptor& desc);
+
+    //! Add a descriptor to the wallet, return a ScriptPubKeyMan & associated output type
+    std::shared_ptr<ScriptPubKeyMan> AddWalletDescriptor(WalletDescriptor& desc, const FlatSigningProvider& signing_provider, const std::string& label, Optional<OutputType>& parsed_output_type);
 };
 
 /**

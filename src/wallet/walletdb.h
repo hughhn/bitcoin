@@ -253,6 +253,7 @@ public:
     bool WriteCryptedDescriptorKey(const uint256& desc_id, const CPubKey& pubkey, const std::vector<unsigned char>& secret);
     bool WriteDescriptor(const uint256& desc_id, const WalletDescriptor& descriptor);
     bool WriteDescriptorCache(const uint256& desc_id, int32_t index, std::vector<unsigned char> cache_item);
+    bool EraseDescriptorCache(const uint256& desc_id, int32_t index);
 
     bool WriteActiveScriptPubKeyMan(uint8_t type, const uint256& id, bool internal);
 

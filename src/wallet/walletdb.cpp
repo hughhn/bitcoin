@@ -217,6 +217,11 @@ bool WalletBatch::WriteDescriptorCache(const uint256& desc_id, int32_t index, st
     return WriteIC(make_pair(make_pair(DBKeys::WALLETDESCRIPTORCACHE, desc_id), index), cache_item);
 }
 
+bool WalletBatch::EraseDescriptorCache(const uint256& desc_id, int32_t index)
+{
+    return EraseIC(make_pair(make_pair(DBKeys::WALLETDESCRIPTORCACHE, desc_id), index));
+}
+
 bool WalletBatch::WriteActiveScriptPubKeyMan(uint8_t type, const uint256& id, bool internal)
 {
     std::string key = DBKeys::EXTERNALSPK;

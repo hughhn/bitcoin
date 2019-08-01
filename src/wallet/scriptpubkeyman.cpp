@@ -1522,7 +1522,7 @@ bool DescriptorScriptPubKeyMan::GetNewDestination(const OutputType type, CTxDest
                 }
             }
             if (!found) {
-                throw std::runtime_error(std::string(__func__) + ": Types are inconsistent. Combo descriptor did not give an adress with the expected type");
+                throw std::runtime_error(std::string(__func__) + ": Types are inconsistent. Combo descriptor did not give an address with the expected type");
             }
         }
         descriptor.next_index++;
@@ -1719,6 +1719,21 @@ bool DescriptorScriptPubKeyMan::TopUp(unsigned int size)
     return true;
 }
 
+bool DescriptorScriptPubKeyMan::ClearDescriptorCache() {
+    LOCK(cs_desc_man);
+    WalletBatch batch(*m_database);
+    uint256 id = GetID();
+    int32_t highest_cached_index = descriptor.range_start + descriptor.cache.size();
+    for (int32_t i = highest_cached_index; i < highest_cached_index + descriptor.cache.size(); ++i) {
+        if (!batch.EraseDescriptorCache(id, i)) {
+            throw std::runtime_error(std::string(__func__) + ": removing cache item failed");
+        }
+    }
+    descriptor.cache.clear();
+
+    return true;
+}
+
 void DescriptorScriptPubKeyMan::MarkUnusedAddresses(const CScript& script)
 {
     LOCK(cs_desc_man);
@@ -1731,6 +1746,15 @@ void DescriptorScriptPubKeyMan::MarkUnusedAddresses(const CScript& script)
         if (!TopUp()) {
             WalletLogPrintf("%s: Topping up keypool failed (locked wallet)\n", __func__);
         }
+    }
+}
+
+void DescriptorScriptPubKeyMan::AddDescriptorKey(const CKey& key, const CPubKey &pubkey)
+{
+    LOCK(cs_desc_man);
+    WalletBatch batch(*m_database);
+    if (!AddDescriptorKeyWithDB(batch, key, pubkey)) {
+        throw std::runtime_error(std::string(__func__) + ": writing descriptor private key failed");
     }
 }
 
@@ -1947,4 +1971,35 @@ bool DescriptorScriptPubKeyMan::AddCryptedKey(const CKeyID& key_id, const CPubKe
 
     m_map_crypted_keys[key_id] = make_pair(pubkey, crypted_key);
     return true;
+}
+
+bool DescriptorScriptPubKeyMan::HasWalletDescriptor(const WalletDescriptor& desc) const
+{
+    return descriptor.descriptor != nullptr && desc.descriptor != nullptr && descriptor.descriptor->ToString() == desc.descriptor->ToString();
+}
+
+void DescriptorScriptPubKeyMan::WriteDescriptor()
+{
+    LOCK(cs_desc_man);
+    WalletBatch batch(*m_database);
+    if (!batch.WriteDescriptor(GetID(), descriptor)) {
+        throw std::runtime_error(std::string(__func__) + ": writing descriptor failed");
+    }
+}
+
+const WalletDescriptor DescriptorScriptPubKeyMan::GetWalletDescriptor() const
+{
+    return descriptor;
+}
+
+const std::vector<CScript> DescriptorScriptPubKeyMan::GetScriptPubKeys() const
+{
+    LOCK(cs_desc_man);
+    std::vector<CScript> script_pub_keys;
+    script_pub_keys.reserve(m_map_script_pub_keys.size());
+
+    for (auto const& script_pub_key: m_map_script_pub_keys) {
+        script_pub_keys.push_back(script_pub_key.first);
+    }
+    return script_pub_keys;
 }
