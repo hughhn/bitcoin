@@ -4265,11 +4265,6 @@ bool CWallet::MaybeClearWalletDescriptorCache(const WalletDescriptor& desc)
         return false;
     }
 
-    if (desc.range_start > spk_manager->GetWalletDescriptor().range_start || desc.range_end < spk_manager->GetWalletDescriptor().range_end) {
-        WalletLogPrintf("range_start can only decrease, range_end can only increase\n");
-        return false;
-    }
-
     WalletLogPrintf("Update existing descriptor: %s\n", desc.descriptor->ToString());
     LOCK(cs_wallet);
 

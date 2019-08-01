@@ -1570,7 +1570,11 @@ static UniValue ProcessDescriptorImport(CWallet * const pwallet, const UniValue&
         WalletDescriptor w_desc(std::move(parsed_desc), timestamp, range_start, range_end, next_index);
 
         // Check if the wallet already contains the descriptor
-        if (pwallet->HasWalletDescriptor(w_desc)) {
+        auto existing_spk_manager = pwallet->HasWalletDescriptor(w_desc);
+        if (existing_spk_manager) {
+            if (range_start > existing_spk_manager->GetWalletDescriptor().range_start) {
+                throw JSONRPCError(RPC_INVALID_PARAMS, strprintf("range_start can only decrease; current range = [%d,%d]", existing_spk_manager->GetWalletDescriptor().range_start, existing_spk_manager->GetWalletDescriptor().range_end));
+            }
             // it's a reimport, so maybe clear the existing descriptor's cache
             pwallet->MaybeClearWalletDescriptorCache(w_desc);
         }
